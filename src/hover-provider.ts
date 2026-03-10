@@ -36,13 +36,18 @@ export class MonkeyCHoverProvider implements vscode.HoverProvider {
 
     return findAnalysis(
       document,
-      (analysis, ast, fileName, isLastGood, project) => {
+      async (analysis, ast, fileName, isLastGood, project) => {
         if (!analysis.typeMap) {
           return null;
         }
         const functionDocumentation =
           project.getFunctionDocumentation() || Promise.resolve(null);
-        const result = findHoverByRange(analysis, ast, fileName, position);
+        const result = await findHoverByRange(
+          analysis,
+          ast,
+          fileName,
+          position
+        );
         if (!result) return null;
         const [self, parent] = result;
         return functionDocumentation.then((docinfo) => {
@@ -118,7 +123,7 @@ export class MonkeyCHoverProvider implements vscode.HoverProvider {
                   if (uri) {
                     return [`<div>${result}<br/>${doc}</div>`, uri] satisfies [
                       string,
-                      string
+                      string,
                     ];
                   }
                   return doc ? `${result}\n\n${doc}` : result;
@@ -156,14 +161,14 @@ export class MonkeyCHoverProvider implements vscode.HoverProvider {
   }
 }
 
-function findHoverByRange(
+async function findHoverByRange(
   analysis: Analysis,
   ast: mctree.Program,
   fileName: string,
   position: vscode.Position
-): [HoverItem, HoverItem | undefined] | null {
+): Promise<[HoverItem, HoverItem | undefined] | null> {
   const results = [] as Array<HoverItem>;
-  visitReferences(
+  await visitReferences(
     analysis.state,
     ast,
     null,

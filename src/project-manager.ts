@@ -444,7 +444,7 @@ export class Project implements vscode.Disposable {
           .concat(Object.keys(this.buildRuleDependencies))
           .concat(this.resources ? Object.keys(this.resources) : [])
           .filter((f) => !normalize(path.relative(file, f)).startsWith("."))
-          .map((f) => ({ file: f, content: false } as const));
+          .map((f) => ({ file: f, content: false }) as const);
         update.length && this.onFilesUpdate(update);
         return;
       } else if (
@@ -669,7 +669,7 @@ export class Project implements vscode.Disposable {
         });
         return [html.removeWhitespace().innerHTML, remotePath] satisfies [
           string,
-          string
+          string,
         ];
       })
       .catch(() => null);
@@ -785,7 +785,7 @@ function hasLocations(lookupDefs: LookupDefinition[]) {
   );
 }
 
-function findItemsByRange(
+async function findItemsByRange(
   state: ProgramStateAnalysis,
   ast: mctree.Program,
   filename: string,
@@ -829,7 +829,7 @@ function findItemsByRange(
      */
     singleDef: boolean;
   }[] = [];
-  visitReferences(
+  await visitReferences(
     state,
     ast,
     null,
@@ -972,77 +972,79 @@ function findDefinitionForProjects(
   return Promise.all(
     projects.map((project) => analysisForProject(project, filePath))
   ).then((results) =>
-    results.map(({ analysis, ast, fileName, project }) => {
-      const result = findItemsByRange(
-        analysis.state,
-        ast,
-        fileName,
-        position,
-        analysis.typeMap,
-        findSingleDefinition
-      );
-      if (!result) {
-        throw new Error("No symbol found");
-      }
-      const node = visitorNode(result.node);
-      if (node.type !== "Identifier") {
-        throw new Error(`Unexpected node type '${node.type}'`);
-      }
-      let results = result.results;
-      if (!result.singleDef) {
-        const newResults = new Map<StateNode | null, Set<StateNodeDecl>>();
-        const klassMap = new Map<ClassStateNode, Set<ClassStateNode>>();
-        const getSubClasses = (cls: ClassStateNode) => {
-          const subClasses = klassMap.get(cls) ?? new Set<ClassStateNode>();
-          if (subClasses.size) return subClasses;
-          klassMap.set(cls, subClasses);
-          subClasses.add(cls);
-          analysis.state.allClasses.forEach(
-            (c) => getSuperClasses(c)?.has(cls) && subClasses.add(c)
-          );
-          return subClasses;
-        };
-        results.forEach((lookupDefn) => {
-          lookupDefn.results.forEach((sn) => {
-            if (isStateNode(sn)) {
-              const name = sn.name;
-              const owner = sn.stack?.at(-1);
-              if (name && owner?.sn.type === "ClassDeclaration") {
-                const subClasses = getSubClasses(owner.sn);
-                subClasses.forEach((sc) => {
-                  const decls = sc.decls?.[name];
-                  if (decls?.length) {
-                    const r = newResults.get(sc);
-                    if (r) {
-                      decls.forEach((d) => r.add(d));
-                    } else {
-                      newResults.set(sc, new Set(decls));
+    Promise.all(
+      results.map(async ({ analysis, ast, fileName, project }) => {
+        const result = await findItemsByRange(
+          analysis.state,
+          ast,
+          fileName,
+          position,
+          analysis.typeMap,
+          findSingleDefinition
+        );
+        if (!result) {
+          throw new Error("No symbol found");
+        }
+        const node = visitorNode(result.node);
+        if (node.type !== "Identifier") {
+          throw new Error(`Unexpected node type '${node.type}'`);
+        }
+        let results = result.results;
+        if (!result.singleDef) {
+          const newResults = new Map<StateNode | null, Set<StateNodeDecl>>();
+          const klassMap = new Map<ClassStateNode, Set<ClassStateNode>>();
+          const getSubClasses = (cls: ClassStateNode) => {
+            const subClasses = klassMap.get(cls) ?? new Set<ClassStateNode>();
+            if (subClasses.size) return subClasses;
+            klassMap.set(cls, subClasses);
+            subClasses.add(cls);
+            analysis.state.allClasses.forEach(
+              (c) => getSuperClasses(c)?.has(cls) && subClasses.add(c)
+            );
+            return subClasses;
+          };
+          results.forEach((lookupDefn) => {
+            lookupDefn.results.forEach((sn) => {
+              if (isStateNode(sn)) {
+                const name = sn.name;
+                const owner = sn.stack?.at(-1);
+                if (name && owner?.sn.type === "ClassDeclaration") {
+                  const subClasses = getSubClasses(owner.sn);
+                  subClasses.forEach((sc) => {
+                    const decls = sc.decls?.[name];
+                    if (decls?.length) {
+                      const r = newResults.get(sc);
+                      if (r) {
+                        decls.forEach((d) => r.add(d));
+                      } else {
+                        newResults.set(sc, new Set(decls));
+                      }
                     }
-                  }
-                });
-                return;
+                  });
+                  return;
+                }
               }
-            }
-            const r = newResults.get(lookupDefn.parent);
-            if (r) {
-              r.add(sn);
-            } else {
-              newResults.set(lookupDefn.parent, new Set([sn]));
-            }
+              const r = newResults.get(lookupDefn.parent);
+              if (r) {
+                r.add(sn);
+              } else {
+                newResults.set(lookupDefn.parent, new Set([sn]));
+              }
+            });
           });
-        });
-        results = Array.from(newResults).map(([parent, results]) => ({
-          parent,
-          results: Array.from(results),
-        }));
-      }
-      return {
-        node,
-        results,
-        analysis,
-        project,
-      };
-    })
+          results = Array.from(newResults).map(([parent, results]) => ({
+            parent,
+            results: Array.from(results),
+          }));
+        }
+        return {
+          node,
+          results,
+          analysis,
+          project,
+        };
+      })
+    )
   );
 }
 
@@ -1272,8 +1274,8 @@ export function processDiagnostics(
         diag.type === "ERROR"
           ? vscode.DiagnosticSeverity.Error
           : diag.type === "WARNING"
-          ? vscode.DiagnosticSeverity.Warning
-          : vscode.DiagnosticSeverity.Information
+            ? vscode.DiagnosticSeverity.Warning
+            : vscode.DiagnosticSeverity.Information
       );
       diagnostic.source = `[pmc-${tag}]`;
       if (diag.extra) {

@@ -118,9 +118,9 @@ export class MonkeyCRenameRefProvider
     _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.WorkspaceEdit> {
     return this.getRenameInfo(document, position)
-      .then((renames) => {
+      .then(async (renames) => {
         const locations: vscode.Location[] = [];
-        renames.forEach(({ id, results, analysis }) => {
+        for (const { id, results, analysis } of renames) {
           const asts = results.every(
             ({ parent }) =>
               parent &&
@@ -132,8 +132,8 @@ export class MonkeyCRenameRefProvider
                 .map(({ ast }) => ast)
                 .concat(analysis.state.rezAst ? [analysis.state.rezAst] : []);
           if (asts.every((ast) => ast != null)) {
-            asts.forEach((ast) => {
-              visitReferences(
+            for (const ast of asts) {
+              await visitReferences(
                 analysis.state,
                 ast!,
                 id.name,
@@ -158,9 +158,9 @@ export class MonkeyCRenameRefProvider
                 null,
                 analysis.typeMap
               );
-            });
+            }
           }
-        });
+        }
         const edits = new vscode.WorkspaceEdit();
         filterLocations(locations).forEach((loc) =>
           edits.replace(loc.uri, loc.range, newName)
@@ -176,106 +176,108 @@ export class MonkeyCRenameRefProvider
     _context: vscode.ReferenceContext,
     _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.Location[]> {
-    return findDefinition(document, position, false).then((definitions) => {
-      const references: vscode.Location[] = [];
-      definitions.forEach(({ node, results, analysis }) => {
-        if (node && results) {
-          const isLocal = results.every(
-            ({ parent }) =>
-              parent &&
-              (parent.type === "BlockStatement" ||
-                parent.type === "FunctionDeclaration")
-          );
-          const asts = isLocal
-            ? [analysis.fnMap[normalize(document.uri.fsPath)].ast]
-            : Object.values(analysis.fnMap)
-                .map(({ ast }) => ast)
-                .concat(analysis.state.rezAst ? [analysis.state.rezAst] : []);
-          const defnSet = new Set(
-            results.flatMap((r) => r.results.map((sn) => declKey(sn)))
-          );
-          const superSet: typeof defnSet = new Set();
-          results.forEach((result) =>
-            result.results.forEach((sn) => {
-              if (isStateNode(sn)) {
-                const name = sn.name;
-                const owner = sn.stack?.at(-1);
-                if (
-                  name &&
-                  owner?.sn.type === "ClassDeclaration" &&
-                  owner.sn.superClass
-                ) {
-                  getSuperClasses(owner.sn)?.forEach((klass) =>
-                    klass.decls?.[name]?.forEach((d) =>
-                      superSet.add(declKey(d))
+    return findDefinition(document, position, false).then(
+      async (definitions) => {
+        const references: vscode.Location[] = [];
+        for (const { node, results, analysis } of definitions) {
+          if (node && results) {
+            const isLocal = results.every(
+              ({ parent }) =>
+                parent &&
+                (parent.type === "BlockStatement" ||
+                  parent.type === "FunctionDeclaration")
+            );
+            const asts = isLocal
+              ? [analysis.fnMap[normalize(document.uri.fsPath)].ast]
+              : Object.values(analysis.fnMap)
+                  .map(({ ast }) => ast)
+                  .concat(analysis.state.rezAst ? [analysis.state.rezAst] : []);
+            const defnSet = new Set(
+              results.flatMap((r) => r.results.map((sn) => declKey(sn)))
+            );
+            const superSet: typeof defnSet = new Set();
+            results.forEach((result) =>
+              result.results.forEach((sn) => {
+                if (isStateNode(sn)) {
+                  const name = sn.name;
+                  const owner = sn.stack?.at(-1);
+                  if (
+                    name &&
+                    owner?.sn.type === "ClassDeclaration" &&
+                    owner.sn.superClass
+                  ) {
+                    getSuperClasses(owner.sn)?.forEach((klass) =>
+                      klass.decls?.[name]?.forEach((d) =>
+                        superSet.add(declKey(d))
+                      )
+                    );
+                  }
+                }
+              })
+            );
+            for (const ast of asts) {
+              if (!ast) return;
+              await visitReferences(
+                analysis.state,
+                ast,
+                node.name,
+                null,
+                (node, results) => {
+                  if (
+                    !results.some((r) =>
+                      r.results.some((result) => {
+                        const key = declKey(result);
+                        // if the node matches one of the definitions, its a reference
+                        if (defnSet.has(key)) return true;
+                        // if its a NewExpression, the type was exact, so definitely not
+                        // a match
+                        if (node.type === "NewExpression") return false;
+                        // if it doesn't match a definition in a superclass, it can't be
+                        // a reference to the defns of interest
+                        if (!superSet.has(key)) return false;
+                        // if its not a MemberExpression, it's not restricted, so it might
+                        // be a reference
+                        if (node.type !== "MemberExpression") return true;
+                        const [, base] = lookupWithType(
+                          analysis.state,
+                          node.object,
+                          analysis.typeMap
+                        );
+                        if (!base) return true;
+                        return !base.every((lookupDef) =>
+                          lookupDef.results.every(
+                            (sn) => sn.type === "ClassDeclaration"
+                          )
+                        );
+                      })
+                    )
+                  ) {
+                    return;
+                  }
+                  const n = visitorNode(node);
+                  const loc = n.loc!;
+                  references.push(
+                    new vscode.Location(
+                      vscode.Uri.file(loc.source!),
+                      new vscode.Range(
+                        loc.start.line - 1,
+                        loc.start.column - 1,
+                        loc.end.line - 1,
+                        loc.end.column - 1
+                      )
                     )
                   );
-                }
-              }
-            })
-          );
-          asts.forEach((ast) => {
-            if (!ast) return;
-            visitReferences(
-              analysis.state,
-              ast,
-              node.name,
-              null,
-              (node, results) => {
-                if (
-                  !results.some((r) =>
-                    r.results.some((result) => {
-                      const key = declKey(result);
-                      // if the node matches one of the definitions, its a reference
-                      if (defnSet.has(key)) return true;
-                      // if its a NewExpression, the type was exact, so definitely not
-                      // a match
-                      if (node.type === "NewExpression") return false;
-                      // if it doesn't match a definition in a superclass, it can't be
-                      // a reference to the defns of interest
-                      if (!superSet.has(key)) return false;
-                      // if its not a MemberExpression, it's not restricted, so it might
-                      // be a reference
-                      if (node.type !== "MemberExpression") return true;
-                      const [, base] = lookupWithType(
-                        analysis.state,
-                        node.object,
-                        analysis.typeMap
-                      );
-                      if (!base) return true;
-                      return !base.every((lookupDef) =>
-                        lookupDef.results.every(
-                          (sn) => sn.type === "ClassDeclaration"
-                        )
-                      );
-                    })
-                  )
-                ) {
-                  return;
-                }
-                const n = visitorNode(node);
-                const loc = n.loc!;
-                references.push(
-                  new vscode.Location(
-                    vscode.Uri.file(loc.source!),
-                    new vscode.Range(
-                      loc.start.line - 1,
-                      loc.start.column - 1,
-                      loc.end.line - 1,
-                      loc.end.column - 1
-                    )
-                  )
-                );
-                return undefined;
-              },
-              false,
-              null,
-              analysis.typeMap
-            );
-          });
+                  return undefined;
+                },
+                false,
+                null,
+                analysis.typeMap
+              );
+            }
+          }
         }
-      });
-      return filterLocations(references);
-    });
+        return filterLocations(references);
+      }
+    );
   }
 }

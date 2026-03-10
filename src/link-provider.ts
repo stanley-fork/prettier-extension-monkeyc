@@ -57,7 +57,7 @@ export class MonkeyCLinkProvider implements vscode.DocumentLinkProvider {
           )
         );
       };
-      visitReferences(
+      return visitReferences(
         analysis.state,
         ast,
         null,
@@ -90,8 +90,7 @@ export class MonkeyCLinkProvider implements vscode.DocumentLinkProvider {
           return !node.loc || !node.loc.source || node.loc.source === fileName;
         },
         analysis.typeMap
-      );
-      return links;
+      ).then(() => links);
     });
   }
 }
