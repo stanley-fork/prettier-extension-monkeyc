@@ -36,7 +36,7 @@ export class MonkeyCCompletionItemProvider
     }
     return findAnalysis(
       document,
-      (analysis, ast, fileName, isLastGood, project) => {
+      async (analysis, ast, fileName, isLastGood, project) => {
         const functionDocumentation =
           project.getFunctionDocumentation() || Promise.resolve(null);
         if (isLastGood) {
@@ -54,7 +54,12 @@ export class MonkeyCCompletionItemProvider
           }
           position = position.translate(0, -match[0].length);
         }
-        const info = findIdentByRange(analysis.state, ast, fileName, position);
+        const info = await findIdentByRange(
+          analysis.state,
+          ast,
+          fileName,
+          position
+        );
         if (!info) return null;
         const { node, stack } = info;
         let decls: StateNode[][] | null = null;
@@ -159,7 +164,7 @@ export class MonkeyCCompletionItemProvider
   }
 }
 
-function findIdentByRange(
+async function findIdentByRange(
   state: ProgramStateAnalysis,
   ast: mctree.Program,
   fileName: string,
@@ -190,7 +195,7 @@ function findIdentByRange(
   };
   state.stack = stack.slice(0, 1);
   try {
-    collectNamespaces(ast, state);
+    await collectNamespaces(ast, state);
   } finally {
     state.pre = pre;
     state.post = post;
