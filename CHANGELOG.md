@@ -4,6 +4,13 @@ All notable changes to the "prettier-extension-monkeyc" extension will be docume
 
 #### v2.0.127
 
+- Update to [@markw65/monkeyc-optimizer@1.1.97](https://github.com/markw65/monkeyc-optimizer/blob/main/CHANGELOG.md#1197)
+  - Fix [$ has :UNDEFINED error (#79)](https://github.com/markw65/monkeyc-optimizer/issues/79#top)
+  - Fix ["Generate Optimized Project" issue due to inlining code into another class (#76)](https://github.com/markw65/monkeyc-optimizer/issues/76#top)
+  - Fix ["Generate Optimized Project" produces code with syntax error (#77)](https://github.com/markw65/monkeyc-optimizer/issues/77#top)
+
+#### v2.0.127
+
 - Update to [@markw65/monkeyc-optimizer@1.1.96](https://github.com/markw65/monkeyc-optimizer/blob/main/CHANGELOG.md#1196)
   - Update to [@markw65/prettier-plugin-monkeyc@1.0.66](https://github.com/markw65/prettier-plugin-monkeyc/blob/main/CHANGELOG.md#1066)
     - Insert a single space after the comma in a list of exclusions if there was at least one space already.
