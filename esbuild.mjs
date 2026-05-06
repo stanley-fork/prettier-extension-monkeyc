@@ -147,7 +147,7 @@ async function updatePackage() {
   });
   const newPackage = JSON.stringify(packageJSON);
   if (newPackage !== JSON.stringify(JSON.parse(contents))) {
-    const formatted = Prettier.format(newPackage, {
+    const formatted = await Prettier.format(newPackage, {
       parser: "json-stringify",
       endOfLine: "lf",
     });
