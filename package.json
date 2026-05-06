@@ -618,6 +618,10 @@
           "extraReferenceTypeChecks": {
             "type": "boolean",
             "markdownDescription": "Whether to warn about [unsafe operations on Arrays and Dictionaries](https://github.com/markw65/monkeyc-optimizer/wiki/Extra-Reference-Type-Checks-(prettierMonkeyC.extraReferenceTypeChecks)) that Garmin's compiler allows"
+          },
+          "javaPath": {
+            "type": "string",
+            "description": "If present, overrides the corresponding `monkeyC' setting."
           }
         }
       }
@@ -863,6 +867,10 @@
               "extraReferenceTypeChecks": {
                 "type": "boolean",
                 "markdownDescription": "Whether to warn about [unsafe operations on Arrays and Dictionaries](https://github.com/markw65/monkeyc-optimizer/wiki/Extra-Reference-Type-Checks-(prettierMonkeyC.extraReferenceTypeChecks)) that Garmin's compiler allows"
+              },
+              "javaPath": {
+                "type": "string",
+                "description": "If present, overrides the corresponding `monkeyC' setting."
               }
             }
           }
