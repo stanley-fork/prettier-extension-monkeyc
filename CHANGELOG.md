@@ -2,7 +2,12 @@
 
 All notable changes to the "prettier-extension-monkeyc" extension will be documented in this file.
 
-#### v2.0.127
+#### v2.0.129
+
+- Update to [@markw65/monkeyc-optimizer@1.1.98](https://github.com/markw65/monkeyc-optimizer/blob/main/CHANGELOG.md#1198)
+  - Add support for `monkeyC.javaPath`. Fixes [#82](https://github.com/markw65/monkeyc-optimizer/issues/82#top)
+
+#### v2.0.128
 
 - Update to [@markw65/monkeyc-optimizer@1.1.97](https://github.com/markw65/monkeyc-optimizer/blob/main/CHANGELOG.md#1197)
   - Fix [$ has :UNDEFINED error (#79)](https://github.com/markw65/monkeyc-optimizer/issues/79#top)
