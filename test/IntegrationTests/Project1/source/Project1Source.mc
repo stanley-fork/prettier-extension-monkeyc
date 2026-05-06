@@ -28,7 +28,7 @@ module MyModule {
         );
     }
 
-    function createTestClass() {
+    function createTestClass() as TestClass {
         return new TestClass(42, TestClass.VALUE);
     }
 }

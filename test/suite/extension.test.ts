@@ -395,7 +395,7 @@ suite("Extension Test Suite", function () {
     const testsSource = path.resolve(project1Dir, "Project1Source.mc");
     return (serializer = serialize()
       .then(() =>
-        checkRefsTargetString(testsSource, "class TestClass", "TestClass", 2, 1)
+        checkRefsTargetString(testsSource, "class TestClass", "TestClass", 3, 1)
       )
       .then(() =>
         checkRefsTargetString(testsSource, "new TestClass", "TestClass", 1, 1)

@@ -6,7 +6,7 @@ module MyModule {
             Base.f2();
         }
 
-        function f0(b as Base) {
+        function f0(b as Base) as Void {
             b.f2();
         }
 
@@ -15,7 +15,7 @@ module MyModule {
         function f2() as Void {}
     }
 
-    function getBase() {
+    function getBase() as Base {
         new Base();
         return new Derived();
     }
